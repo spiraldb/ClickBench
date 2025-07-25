@@ -9,13 +9,12 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --defaul
 export CC=clang
 export CXX=clang++
 git clone https://github.com/vortex-data/vortex --recursive
-cd vortex
-git fetch --tags
-git checkout 0.35.0
 cd duckdb-vortex
+git fetch --tags
+git checkout 0.42.1
 GEN=ninja NATIVE_ARCH=1 LTO=thin make
 export PATH="`pwd`/build/release/:$PATH"
-cd ../..
+cd ..
 
 # Load the data
 seq 0 99 | xargs -P100 -I{} bash -c 'wget --continue --progress=dot:giga https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
