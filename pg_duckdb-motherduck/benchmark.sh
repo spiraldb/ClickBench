@@ -1,10 +1,6 @@
 #!/bin/bash
 
-set -ex
-
-# Setup on Ubuntu (your package manager may vary):
-# sudo snap install docker
-# sudo apt install postgresql-client
+set -e
 
 # Note: To get equivalent performance you should be running from
 # AWS US-EAST-1 region or as close to there as possible. Otherwise
@@ -23,12 +19,15 @@ if [ -z "${MOTHERDUCK_TOKEN}" ]; then
     exit 1
 fi
 
+sudo apt-get update -y
+sudo apt-get install -y docker.io postgresql-client
 sudo docker run -d --name pgduck --network=host -e POSTGRES_PASSWORD=duckdb -e MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN} pgduckdb/pgduckdb:17-v0.3.1 -c duckdb.motherduck_enabled=true
 
 # Give postgres time to start running
 sleep 10
 
-./load.sh 2>&1 | tee load_log.txt
+echo -n "Load time: "
+command time -f '%e' ./load.sh
 
 ./run.sh 2>&1 | tee log.txt
 

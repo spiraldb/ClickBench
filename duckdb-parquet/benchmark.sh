@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Install
-sudo apt-get update
-sudo apt-get install ninja-build cmake build-essential make ccache pip clang -y
+sudo apt-get update -y
+sudo apt-get install -y ninja-build cmake build-essential make ccache pip clang
 
 export CC=clang
 export CXX=clang++
@@ -14,9 +14,12 @@ export PATH="$PATH:`pwd`/build/release/"
 cd ..
 
 # Load the data
-seq 0 99 | xargs -P100 -I{} bash -c 'wget --continue https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
+seq 0 99 | xargs -P100 -I{} bash -c 'wget --continue --progress=dot:giga https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
 
-time duckdb hits.db -f create.sql
+echo -n "Load time: "
+command time -f '%e' duckdb hits.db -f create.sql
+
+echo "Data size: $(du -bcs hits*.parquet | grep total)"
 
 # Run the queries
 

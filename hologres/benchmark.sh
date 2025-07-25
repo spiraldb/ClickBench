@@ -19,8 +19,9 @@ FILENAME="hits.tsv"
 # Check if the file exists
 if [ ! -f "$FILENAME" ]; then
     echo "The file $FILENAME does not exist. Starting to download..."
-    wget --no-verbose --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-    gzip -d hits.tsv.gz
+    sudo apt-get install -y pigz
+    wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+    pigz -d -f hits.tsv.gz
     chmod 777 ~ hits.tsv
     if [ $? -eq 0 ]; then
         echo "File download completed!"
@@ -46,10 +47,10 @@ split -l 10000000 hits.tsv hits_part_
 
 # load data
 echo "Starting to load data..."
-time (
 for file in hits_part_*; do
-    PGUSER=$PG_USER PGPASSWORD=$PG_PASSWORD psql -h $HOST_NAME -p $PORT -d $DATABASE -t -c '\timing' -c "\\copy hits FROM '$file'"
-done )
+    echo -n "Load time: "
+    PGUSER=$PG_USER PGPASSWORD=$PG_PASSWORD command time -f '%e' psql -h $HOST_NAME -p $PORT -d $DATABASE -t -c "\\copy hits FROM '$file'"
+done
 
 # run clickbench test with queries
 echo "Starting to run queries..."

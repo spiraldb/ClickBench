@@ -4,17 +4,17 @@
 
 set -e
 
-VERSION=3.4.2-ubuntu-amd64
+VERSION=3.4.2-ubuntu-$(dpkg --print-architecture)
 # Install
-wget https://releases.starrocks.io/starrocks/StarRocks-$VERSION.tar.gz -O StarRocks-$VERSION.tar.gz
+wget --continue --progress=dot:giga https://releases.starrocks.io/starrocks/StarRocks-$VERSION.tar.gz -O StarRocks-$VERSION.tar.gz
 tar zxvf StarRocks-${VERSION}.tar.gz
 
 cd StarRocks-${VERSION}/
 
 # Install dependencies
-sudo apt update
-sudo apt install openjdk-17-jre mariadb-client
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+sudo apt-get update -y
+sudo apt-get install -y openjdk-17-jre mariadb-client
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)
 export PATH=$JAVA_HOME/bin:$PATH
 
 # Create directory for FE and BE
@@ -39,8 +39,9 @@ sleep 30
 
 # Prepare Data
 cd ../
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 # Create Table
 mysql -h 127.0.0.1 -P9030 -uroot -e "CREATE DATABASE hits"
@@ -57,16 +58,20 @@ curl --location-trusted \
     http://localhost:8030/api/hits/hits/_stream_load
 END=$(date +%s)
 LOADTIME=$(echo "$END - $START" | bc)
-echo "Load data costs $LOADTIME seconds"
+echo "Load time: $LOADTIME"
 
 # Dataset contains about 40GB of data when the import is just completed.
 # This is because the trashed data generated during the compaction process.
 # After about tens of minutes, when the gc is completed, the system includes about 16.5GB of data.
-du -bcs StarRocks-${VERSION}/storage/
+echo -n "Data size: "
+du -bcs StarRocks-${VERSION}/storage/ | grep total
 # Dataset contains 99997497 rows
 mysql -h 127.0.0.1 -P9030 -uroot hits -e "SELECT count(*) FROM hits"
 
-# Run queries
-./run.sh 2>&1 | tee run.log
+./run.sh 2>&1 | tee -a log.txt
 
-sed -r -e 's/query[0-9]+,/[/; s/$/],/' run.log
+cat log.txt |
+  grep -P 'rows? in set|Empty set|^ERROR' |
+  sed -r -e 's/^ERROR.*$/null/; s/^.*?\((([0-9.]+) min )?([0-9.]+) sec\).*?$/\2 \3/' |
+  awk '{ if ($2 != "") { print $1 * 60 + $2 } else { print $1 } }' |
+  awk '{ if (i % 3 == 0) { printf "[" }; printf $1; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

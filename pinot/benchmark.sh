@@ -1,14 +1,14 @@
 #!/bin/bash
 
-sudo apt-get update
-sudo apt install openjdk-11-jdk jq -y
+sudo apt-get update -y
+sudo apt-get install -y openjdk-11-jdk jq
 sudo update-alternatives --config java
 
 # Install
 
-PINOT_VERSION=0.10.0
+PINOT_VERSION=1.3.0
 
-wget https://downloads.apache.org/pinot/apache-pinot-$PINOT_VERSION/apache-pinot-$PINOT_VERSION-bin.tar.gz
+wget --continue --progress=dot:giga https://downloads.apache.org/pinot/apache-pinot-$PINOT_VERSION/apache-pinot-$PINOT_VERSION-bin.tar.gz
 tar -zxvf apache-pinot-$PINOT_VERSION-bin.tar.gz
 
 ./apache-pinot-$PINOT_VERSION-bin/bin/pinot-admin.sh QuickStart -type batch &
@@ -17,28 +17,32 @@ sleep 30
 
 # Load the data
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
 gzip -d -f hits.tsv.gz
 
 # Pinot was unable to load data as a single file wihout any errors returned. We have to split the data
-split -d --additional-suffix .tsv --verbose -n l/100 hits.tsv parts
+echo -n "Load time: "
+command time -f '%e' split -d --additional-suffix .tsv -n l/100 hits.tsv parts
 
 # Pinot can't load value '"tatuirovarki_redmond' so we need to fix this row to make it work
-sed parts93.tsv -e 's "tatuirovarki_redmond tatuirovarki_redmond g' -i
+echo -n "Load time: "
+command time -f '%e' sed parts93.tsv -e 's/"tatuirovarki_redmond/tatuirovarki_redmond/g' -i
 
 # Fix path to local directory
-sed splitted.yaml 's PWD_DIR_PLACEHOLDER '$PWD' g' -i
-sed local.yaml 's PWD_DIR_PLACEHOLDER '$PWD' g' -i
+sed splitted.yaml 's/PWD_DIR_PLACEHOLDER/'$PWD'/g' -i
+sed local.yaml 's/PWD_DIR_PLACEHOLDER/'$PWD'/g' -i
 
 # Load data
-./apache-pinot-$PINOT_VERSION-bin/bin/pinot-admin.sh LaunchDataIngestionJob -jobSpecFile splitted.yaml
+echo -n "Load time: "
+command time -f '%e' ./apache-pinot-$PINOT_VERSION-bin/bin/pinot-admin.sh LaunchDataIngestionJob -jobSpecFile splitted.yaml
 
 # After upload it shows 94465149 rows instead of 99997497 in the dataset
 
 # Run the queries
 ./run.sh
 
-# stop Druid services
+# stop Pinot services
 kill %1
 
-du -bcs ./batch
+echo -n "Data size: "
+du -bcs ./batch | grep total

@@ -9,16 +9,17 @@
 1. Once the service is ready use the provided connection string to import the dataset:  
 
    ```bash
-   wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+   wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
    gzip -d -f hits.tsv.gz
    
    export $CONNECTION_STRING=...  
-   time ./load.sh 
+   echo -n "Load time: "
+   command time -f '%e' ./load.sh
    ```
 
 1. Find the datasize:
    ```bash
-   psql "$CONNECTION_STRING" -c "SELECT hypertable_size('hits');"    
+   psql "$CONNECTION_STRING" -q -c "SELECT hypertable_size('hits');"
    ```
 
 1. Run the and benchmark the queries:

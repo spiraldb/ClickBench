@@ -3,11 +3,12 @@
 echo "Install Rust"
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rust-init.sh
 bash rust-init.sh -y
+export HOME=${HOME:=~}
 source ~/.cargo/env
 
 echo "Install Dependencies"
-sudo apt-get update
-sudo apt-get install --yes gcc
+sudo apt-get update -y
+sudo apt-get install -y gcc
 
 echo "Install DataFusion main branch"
 git clone https://github.com/apache/arrow-datafusion.git
@@ -18,12 +19,10 @@ export PATH="`pwd`/target/release:$PATH"
 cd ..
 
 echo "Download benchmark target data, single file"
-wget --continue https://datasets.clickhouse.com/hits_compatible/hits.parquet
+wget --continue --progress=dot:giga https://datasets.clickhouse.com/hits_compatible/hits.parquet
 
-echo "Download benchmark target data, partitioned"
-mkdir -p partitioned
-seq 0 99 | xargs -P100 -I{} bash -c 'wget --directory-prefix partitioned --continue https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
+echo "Run benchmarks"
+./run.sh
 
-echo "Run benchmarks for single parquet and partitioned"
-./run.sh single
-./run.sh partitioned
+echo "Load time: 0"
+echo "Data size: $(du -bcs hits.parquet)"

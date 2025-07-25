@@ -1,8 +1,10 @@
 {
     "system": "ByConity",
     "date": "2023-06-21",
-    "machine": "c6a.4xlarge, 500gb gp2",
+    "machine": "c6a.4xlarge",
     "cluster_size": 1,
+    "proprietary": "no",
+    "tuned": "no",
     "comment": "",
 
     "tags": ["C++", "column-oriented", "ClickHouse derivative"],

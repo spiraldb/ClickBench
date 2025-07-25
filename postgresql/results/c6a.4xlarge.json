@@ -1,8 +1,10 @@
 {
     "system": "PostgreSQL",
     "date": "2025-03-10",
-    "machine": "c6a.4xlarge, 500gb gp2",
+    "machine": "c6a.4xlarge",
     "cluster_size": 1,
+    "proprietary": "no",
+    "tuned": "no",
     "comment": "",
 
     "tags": ["C", "row-oriented", "PostgreSQL compatible"],

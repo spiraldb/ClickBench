@@ -11,9 +11,9 @@
 
 clickhouse-client --host "$FQDN" --password "$PASSWORD" --secure < create.sql
 
-clickhouse-client --host "$FQDN" --password "$PASSWORD" --secure --query "
-  INSERT INTO hits SELECT * FROM url('https://clickhouse-public-datasets.s3.amazonaws.com/hits_compatible/hits.tsv.gz')
-" --time
+clickhouse-client --host "$FQDN" --password "$PASSWORD" --secure --time --query "
+  INSERT INTO hits SELECT * FROM url('https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{0..99}.parquet')
+"
 
 # 343.455
 

@@ -4,6 +4,8 @@
     "machine": "XL",
     "cluster_size": 16,
     "comment": "",
+    "proprietary": "yes",
+    "tuned": "no",
 
     "tags": ["managed", "column-oriented"],
 

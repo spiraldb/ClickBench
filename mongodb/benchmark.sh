@@ -1,14 +1,27 @@
-#!/bin/bash
+#!/bin/bash -e
 
 # https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/
-# It requires Ubuntu 20.04. The latest version 22.04 would not work.
 
-wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
-echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-sudo apt-get update
+sudo apt-get update -y
+sudo apt-get install -y gnupg curl
+
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+   sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg \
+   --dearmor
+
+source /etc/lsb-release
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu ${DISTRIB_CODENAME}/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+
+sudo apt-get update -y
 sudo apt-get install -y mongodb-org
 sudo systemctl start mongod
 sudo systemctl status mongod
+
+for _ in {1..300}
+do
+  mongosh --quiet --eval "db.runCommand('ping').ok" && break
+  sleep 1
+done
 
 #################################
 # set params `internalQueryPlannerGenerateCoveredWholeIndexScans` to true because we know that collscan is
@@ -55,16 +68,19 @@ time mongosh --quiet --eval 'db.hits.createIndex({"ClientIP": 1, "WatchID": 1, "
 
 #################################
 # Load data and import
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 # Use mongo import to load data into mongo. By default numInsertionWorkers is 1 so change to half of VM where it would be run
 #time mongoimport --collection hits --type tsv hits.tsv --fieldFile=create.txt --columnsHaveTypes --numInsertionWorkers=8
 
 # But on the AWS c6a.4xlarge machines, parallel import is slower than single-threaded, so we choose the single-threaded import.
-time mongoimport --collection hits --type tsv hits.tsv --fieldFile=create.txt --columnsHaveTypes
+echo -n "Load time: "
+command time -f '%e' mongoimport --collection hits --type tsv hits.tsv --fieldFile=create.txt --columnsHaveTypes
 
-sudo du -bcs /var/lib/mongodb/
+echo -n "Data size: "
+sudo du -bcs /var/lib/mongodb/ | grep total
 # total size:   82937405440 (77.2 Gb)
 # indexes size: 38326390784 (35.6 Gb) // heh, so much but indexes should be
 # storage size: 44610863104 (41.5 Gb)

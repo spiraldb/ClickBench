@@ -5,7 +5,7 @@ import timeit
 import sys
 import os
 
-con = duckdb.connect(read_only=False)
+con = duckdb.connect(':memory:')
 
 # enable the progress bar
 con.execute('PRAGMA enable_progress_bar;')
@@ -17,20 +17,17 @@ con.execute("SET preserve_insertion_order = false;")
 print("Will load the data")
 start = timeit.default_timer()
 con.execute(open("create.sql").read())
-con.execute("COPY hits FROM 'hits.csv';")
+con.execute("COPY hits FROM 'hits.tsv' (QUOTE '');")
 end = timeit.default_timer()
-print(end - start)
+print(round(end - start, 3))
 
 with open('queries.sql', 'r') as file:
     for query in file:
-        os.system("sync")
-        os.system("echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null")
-
         print(query)
 
         for try_num in range(3):
             start = timeit.default_timer()
             results = con.sql(query).fetchall()
             end = timeit.default_timer()
-            print(end - start)
+            print(round(end - start, 3))
             del results

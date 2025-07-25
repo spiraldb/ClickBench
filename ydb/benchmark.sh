@@ -70,11 +70,10 @@ update_file() {
     return 0
 }
 
-sudo apt update
-sudo apt-get upgrade -y
-sudo apt install software-properties-common -y
+sudo apt-get update -y
+sudo apt-get install -y software-properties-common
 sudo add-apt-repository --yes --update ppa:ansible/ansible
-sudo apt-get install ansible-core -y
+sudo apt-get install -y ansible-core
 
 cd $START_DIR
 if [ ! -d "ydb" ]; then
@@ -271,7 +270,7 @@ ansible-playbook ydb_platform.ydb.initial_setup --skip-tags checks
 cd $START_DIR
 
 if [ ! -f "hits.csv.gz" ]; then
-    wget --continue --progress=bar:force:noscroll https://datasets.clickhouse.com/hits_compatible/hits.csv.gz
+    wget --continue --progress=dot:giga https://datasets.clickhouse.com/hits_compatible/hits.csv.gz
 fi
 
 if [ ! -f "hits.csv" ]; then
@@ -286,7 +285,8 @@ fi
 
 cert_dir=$(find $START_DIR/ydb-ansible-examples/TLS/CA/certs -maxdepth 1 -type d -not -path "." -printf "%T@ %p\n" | sort -n | tail -n 1 | cut -d' ' -f2-)
 echo $YDB_PASSWORD|$START_DIR/ydb-ansible-examples/3-nodes-mirror-3-dc/files/ydb -e grpcs://$host1$host_suffix:2135 -d /Root/database --ca-file $cert_dir/ca.crt --user root  workload clickbench init --datetime --store column
-time echo $YDB_PASSWORD|$START_DIR/ydb-ansible-examples/3-nodes-mirror-3-dc/files/ydb -e grpcs://$host1$host_suffix:2135 -d /Root/database --ca-file $cert_dir/ca.crt --user root import file csv hits.csv -p clickbench/hits
+echo -n "Load time: "
+command time -f '%e' echo $YDB_PASSWORD|$START_DIR/ydb-ansible-examples/3-nodes-mirror-3-dc/files/ydb -e grpcs://$host1$host_suffix:2135 -d /Root/database --ca-file $cert_dir/ca.crt --user root import file csv hits.csv -p clickbench/hits
 
 cd $START_DIR
 ./run.sh

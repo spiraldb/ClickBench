@@ -3,6 +3,8 @@
     "date": "2022-07-01",
     "machine": "M",
     "cluster_size": 4,
+    "proprietary": "yes",
+    "tuned": "no",
     "comment": "",
 
     "tags": ["managed", "column-oriented"],

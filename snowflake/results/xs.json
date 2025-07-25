@@ -4,6 +4,8 @@
     "machine": "XS",
     "cluster_size": 1,
     "comment": "",
+    "proprietary": "yes",
+    "tuned": "no",
 
     "tags": ["managed", "column-oriented"],
 

@@ -8,8 +8,10 @@ SELECT format(
 $${{
     "system": "ClickHouse (web)",
     "date": "{}",
-    "machine": "c6a.4xlarge, 500gb gp2",
+    "machine": "c6a.4xlarge",
     "cluster_size": 1,
+    "proprietary": "no",
+    "tuned": "no",
     "comment": "",
     "tags": ["C++", "column-oriented", "ClickHouse derivative", "serverless", "stateless"],
     "load_time": {},
@@ -33,8 +35,10 @@ SELECT format(
 $${{
     "system": "ClickHouse (web)",
     "date": "{}",
-    "machine": "c6a.metal, 500gb gp2",
+    "machine": "c6a.metal",
     "cluster_size": 1,
+    "proprietary": "no",
+    "tuned": "no",
     "comment": "",
     "tags": ["C++", "column-oriented", "ClickHouse derivative", "serverless", "stateless"],
     "load_time": {},

@@ -17,7 +17,7 @@ else
 fi
 
 # Download Parseable v1.7.4 binary
-wget https://github.com/parseablehq/parseable/releases/download/v1.7.5/Parseable_OSS_x86_64-unknown-linux-gnu
+wget --continue --progress=dot:giga https://github.com/parseablehq/parseable/releases/download/v1.7.5/Parseable_OSS_x86_64-unknown-linux-gnu
 mv Parseable_OSS_x86_64-unknown-linux-gnu parseable
 chmod +x parseable
 
@@ -36,16 +36,17 @@ chmod +x ingestion.sh
 chmod +x run_query.sh
 
 #run ingestion script
-./ingestion.sh
-
-#sleep for 3 minutes to allow sync to complete
-sleep 180
+echo -n "Load time: "
+command time -f '%e' ./ingestion.sh
 
 #run query script
 ./run_query.sh
 
 #view results
-cat result.csv
+cat result.csv | sed -r -e 's/^([0-9\.]+) ([0-9\.]+) ([0-9\.]+)$/[\1, \2, \3]/'
+
+echo -n "Data size: "
+du -bcs local-store | grep total
 
 #kill parseable
 kill $PARSEABLE_PID

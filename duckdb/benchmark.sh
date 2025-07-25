@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Install
-sudo apt-get update
-sudo apt-get install ninja-build cmake build-essential make ccache pip clang -y
+sudo apt-get update -y
+sudo apt-get install -y ninja-build cmake build-essential make ccache pip clang
 
 export CC=clang
 export CXX=clang++
@@ -14,15 +14,18 @@ export PATH="$PATH:`pwd`/build/release/"
 cd ..
 
 # Load the data
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
-time duckdb hits.db -f create.sql -c "COPY hits FROM 'hits.tsv' (QUOTE '')"
+echo -n "Load time: "
+command time -f '%e' duckdb hits.db -f create.sql -c "COPY hits FROM 'hits.tsv' (QUOTE '')"
 
 # Run the queries
 
 ./run.sh 2>&1 | tee log.txt
 
+echo -n "Data size: "
 wc -c hits.db
 
 cat log.txt |

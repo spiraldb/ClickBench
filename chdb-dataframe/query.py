@@ -9,7 +9,8 @@ import chdb
 start = timeit.default_timer()
 hits = pd.read_parquet("hits.parquet")
 end = timeit.default_timer()
-load_time = end - start
+load_time = round(end - start, 3)
+print(f"Load time: {load_time}")
 
 dataframe_size = hits.memory_usage().sum()
 
@@ -43,14 +44,14 @@ for q in queries:
         start = timeit.default_timer()
         result = conn.query(q, "Null")
         end = timeit.default_timer()
-        times.append(end - start)
+        times.append(round(end - start, 3))
     print(f"Q{i}: ", times)
     queries_times.append(times)
 
 result_json = {
     "system": "chDB (DataFrame)",
     "date": datetime.date.today().strftime("%Y-%m-%d"),
-    "machine": "c6a.metal, 500gb gp2",
+    "machine": "c6a.metal",
     "cluster_size": 1,
     "comment": "",
     "tags": [

@@ -20,7 +20,7 @@ Find the writer instance endpoint.
 Example: database-1.cluster-cnkeohbxcwr1.eu-central-1.rds.amazonaws.com
 
 ```
-sudo apt-get update
+sudo apt-get update -y
 sudo apt-get install -y postgresql-client
 ```
 
@@ -36,12 +36,13 @@ chmod 400 .pgpass
 Load the data
 
 ```
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
 gzip -d -f hits.tsv.gz
 
 psql -U postgres -h "${FQDN}" -t -c 'CREATE DATABASE test'
 psql -U postgres -h "${FQDN}" test -t < create.sql
-psql -U postgres -h "${FQDN}" test -t -c '\timing' -c "\\copy hits FROM 'hits.tsv'"
+echo -n "Load time: "
+command time -f '%e' psql -U postgres -h "${FQDN}" test -t -c "\\copy hits FROM 'hits.tsv'"
 ```
 
 > COPY 99997497

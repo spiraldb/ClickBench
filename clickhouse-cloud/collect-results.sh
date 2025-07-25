@@ -13,10 +13,12 @@ do
 
     echo '
 {
-    "system": "ClickHouse Cloud ('$PROVIDER')",
+    "system": "ClickHouse ☁️ ('$PROVIDER')",
     "date": "'$(date +%F)'",
-    "machine": "'$MEMORY'GiB, '$REPLICAS' replica(s)",
-    "cluster_size": "'$REPLICAS'",
+    "machine": "'$MEMORY'GiB",
+    "cluster_size": '$REPLICAS',
+    "proprietary": "yes",
+    "tuned": "no",
     "comment": "",
 
     "tags": ["C++", "column-oriented", "ClickHouse derivative", "managed", "'$PROVIDER'"],

@@ -56,7 +56,7 @@ Not Foundubuntu@ip-172-31-22-83:~$
 The GitHub repository https://github.com/bytehouse-cloud/cli/ is hilarious.
 
 ```
-wget https://github.com/bytehouse-cloud/cli/releases/download/v1.5.34/bytehouse-cli_1.5.34_Linux_x86_64.tar.gz
+wget --continue --progress=dot:giga https://github.com/bytehouse-cloud/cli/releases/download/v1.5.34/bytehouse-cli_1.5.34_Linux_x86_64.tar.gz
 tar xvf bytehouse-cli_1.5.34_Linux_x86_64.tar.gz
 ```
 
@@ -199,14 +199,15 @@ Trash.
 Will try CSV.
 
 ```
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.csv.gz'
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.csv.gz'
 gzip -d -f hits.csv.gz
 ```
 
 Now it started to work:
 
 ```
-time ./bytehouse-cli --user "$user" --account "$account" --password "$password" --region ap-southeast-1 --secure --warehouse "$warehouse" --query "INSERT INTO test.hits FORMAT CSV" < hits.csv
+echo -n "Load time: "
+command time -f '%e' ./bytehouse-cli --user "$user" --account "$account" --password "$password" --region ap-southeast-1 --secure --warehouse "$warehouse" --query "INSERT INTO test.hits FORMAT CSV" < hits.csv
 ```
 
 ```

@@ -2,7 +2,7 @@
 
 # Install
 
-sudo apt-get update
+sudo apt-get update -y
 sudo apt-get install -y mariadb-server
 sudo bash -c "echo -e '[mysql]\nlocal-infile=1\n\n[mysqld]\nlocal-infile=1\n' > /etc/mysql/conf.d/local_infile.cnf"
 
@@ -14,17 +14,20 @@ sudo service mariadb restart
 
 # Load the data
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 sudo mariadb -e "CREATE DATABASE test"
 sudo mariadb test < create.sql
 
-time split -l 10000 --filter="sudo mariadb test -e \"SET sql_log_bin = 0; LOAD DATA LOCAL INFILE '/dev/stdin' INTO TABLE hits;\"" hits.tsv
+echo -n "Load time: "
+command time -f '%e' split -l 10000 --filter="sudo mariadb test -e \"SET sql_log_bin = 0; LOAD DATA LOCAL INFILE '/dev/stdin' INTO TABLE hits;\"" hits.tsv
 
 ./run.sh 2>&1 | tee log.txt
 
-sudo du -bcs /var/lib/mysql
+echo -n "Data size: "
+sudo mariadb test -e "SELECT data_length + index_length FROM information_schema.TABLES WHERE table_schema = 'test' AND table_name = 'hits';" | tail -n1
 
 cat log.txt |
   grep -P 'rows? in set|Empty set|^ERROR' |

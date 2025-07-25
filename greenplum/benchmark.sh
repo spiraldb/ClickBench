@@ -5,11 +5,11 @@
 
 echo "This script must be run from gpadmin user. Press enter to continue."
 read
-sudo apt update
-sudo apt install -y software-properties-common
+sudo apt-get update -y
+sudo apt-get install -y software-properties-common
 sudo add-apt-repository ppa:greenplum/db
-sudo apt update
-sudo apt install greenplum-db-6
+sudo apt-get update -y
+sudo apt-get install -y greenplum-db-6
 sudo rm -rf /gpmaster /gpdata*
 ssh-keygen -t rsa -b 4096
 touch /home/gpadmin/.ssh/authorized_keys
@@ -17,7 +17,7 @@ chmod 600 ~/.ssh/authorized_keys
 cat /home/gpadmin/.ssh/id_rsa.pub >> /home/gpadmin/.ssh/authorized_keys
 sudo echo "# kernel.shmall = _PHYS_PAGES / 2 # See Shared Memory Pages
 kernel.shmall = 197951838
-# kernel.shmmax = kernel.shmall * PAGE_SIZE 
+# kernel.shmmax = kernel.shmall * PAGE_SIZE
 kernel.shmmax = 810810728448
 kernel.shmmni = 4096
 vm.overcommit_memory = 2 # See Segment Host Memory
@@ -63,13 +63,16 @@ sudo mkdir /gpmaster /gpdata1 /gpdata2 /gpdata3 /gpdata4 /gpdata5 /gpdata6 /gpda
 sudo chmod 777 /gpmaster /gpdata1 /gpdata2 /gpdata3 /gpdata4 /gpdata5 /gpdata6 /gpdata7 /gpdata8 /gpdata9 /gpdata10 /gpdata11 /gpdata12 /gpdata13 /gpdata14
 gpinitsystem -ac gpinitsystem_singlenode
 export MASTER_DATA_DIRECTORY=/gpmaster/gpsne-1/
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 chmod 777 ~ hits.tsv
 psql -d postgres -f create.sql
 nohup gpfdist &
-time psql -d postgres -t -c '\timing' -c "insert into hits select * from hits_ext;"
-psql -d postgres -t -c "ANALYZE hits;"
+echo -n "Load time: "
+command time -f '%e' psql -d postgres -t -c "insert into hits select * from hits_ext;"
+echo -n "Load time: "
+command time -f '%e' psql -d postgres -t -c "ANALYZE hits;"
 du -sh /gpdata*
 ./run.sh 2>&1 | tee log.txt
 cat log.txt | grep -oP 'Time: \d+\.\d+ ms' | sed -r -e 's/Time: ([0-9]+\.[0-9]+) ms/\1/' |awk '{ if (i % 3 == 0) { printf "[" }; printf $1 / 1000; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

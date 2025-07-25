@@ -1,16 +1,15 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
 PGVERSION=17
 
 # Source: https://wiki.postgresql.org/wiki/Apt
-sudo apt-get update
-sudo apt install -y postgresql-common
-sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+sudo apt-get update -y
+sudo apt-get install -y postgresql-common -y
+sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 
-sudo apt-get update
-sudo apt-get upgrade
+sudo apt-get update -y
 sudo apt-get install -y postgresql-$PGVERSION
 
 memory=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
@@ -51,20 +50,23 @@ EOF
 
 sudo systemctl restart postgresql@$PGVERSION-main
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 sudo -u postgres psql -t -c 'CREATE DATABASE test'
 sudo -u postgres psql test -t <create.sql
 
-time ./load.sh
+echo -n "Load time: "
+command time -f '%e' ./load.sh
 
 # COPY 99997497
 # Time: 2341543.463 ms (39:01.543)
 
 ./run.sh 2>&1 | tee log.txt
 
-sudo du -bcs /var/lib/postgresql/$PGVERSION/main/
+echo -n "Data size: "
+sudo du -bcs /var/lib/postgresql/$PGVERSION/main/ | grep total
 
 cat log.txt | grep -oP 'Time: \d+\.\d+ ms' | sed -r -e 's/Time: ([0-9]+\.[0-9]+) ms/\1/' |
     awk '{ if (i % 3 == 0) { printf "[" }; printf $1 / 1000; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

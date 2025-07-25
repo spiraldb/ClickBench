@@ -2,9 +2,11 @@
 
 # Install
 
-sudo apt-get update
-sudo apt-get install -y python3-pip
-pip install --break-system-packages duckdb psutil
+sudo apt-get update -y
+sudo apt-get install -y python3-pip python3-venv
+python3 -m venv myenv
+source myenv/bin/activate
+pip install duckdb psutil
 
 # Go to the web ui and obtain a token
 # https://motherduck.com/docs/key-tasks/authenticating-and-connecting-to-motherduck/authenticating-to-motherduck/
@@ -13,7 +15,8 @@ pip install --break-system-packages duckdb psutil
 
 # Load the data
 
-./load.py
+echo -n "Load time: "
+command time -f '%e' ./load.py
 
 # Run the queries
 

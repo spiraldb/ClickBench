@@ -20,7 +20,7 @@ Find the writer instance endpoint.
 Example: database-1.cluster-cnkeohbxcwr1.eu-central-1.rds.amazonaws.com
 
 ```
-sudo apt-get update
+sudo apt-get update -y
 sudo apt-get install -y mysql-client
 ```
 
@@ -37,12 +37,13 @@ mysql -h "${FQDN}" -u admin --password="${PASSWORD}" -e "CREATE DATABASE test"
 Load the data
 
 ```
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
 gzip -d -f hits.tsv.gz
 
 mysql -h "${FQDN}" -u admin --password="${PASSWORD}" test < create.sql
 
-time mysql --local-infile=1 -h "${FQDN}" -u admin --password="${PASSWORD}" test -e "LOAD DATA LOCAL INFILE 'hits.tsv' INTO TABLE hits"
+echo -n "Load time: "
+command time -f '%e' mysql --local-infile=1 -h "${FQDN}" -u admin --password="${PASSWORD}" test -e "LOAD DATA LOCAL INFILE 'hits.tsv' INTO TABLE hits"
 ```
 
 > 128m7.318s
@@ -57,7 +58,7 @@ Go to "Monitoring", find "[Billed] Volume Bytes Used".
 cat log.txt |
   grep -P 'rows? in set|Empty set|^ERROR' |
   sed -r -e 's/^ERROR.*$/null/; s/^.*?\((([0-9.]+) min )?([0-9.]+) sec\).*?$/\2 \3/' |
-  awk '{ if ($2) { print $1 * 60 + $2 } else { print $1 } }' |
+  awk '{ if ($2 != "") { print $1 * 60 + $2 } else { print $1 } }' |
   awk '{ if (i % 3 == 0) { printf "[" }; printf $1; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'
 ```
 

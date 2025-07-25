@@ -1,13 +1,13 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
-#sudo apt-get update
-#sudo apt-get install -y docker.io
-#sudo apt-get install -y postgresql-client
+sudo apt-get update -y
+sudo apt-get install -y docker.io postgresql-client
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 memory=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
 threads=$(nproc)
@@ -40,7 +40,7 @@ sudo docker run -d --name pgduck -p 5432:5432 -e POSTGRES_PASSWORD=duckdb pgduck
 
 sleep 2
 
-sudo docker exec -it pgduck bash -c "
+sudo docker exec -i pgduck bash -c "
 cat >> /var/lib/postgresql/data/postgresql.conf <<'EOF'
 shared_buffers=${shared_buffers}kB
 max_worker_processes=${max_worker_processes}
@@ -59,15 +59,22 @@ docker restart pgduck
 
 export PGUSER=postgres
 export PGPASSWORD=duckdb
+export CONNECTION=postgres://postgres:duckdb@localhost:5432/postgres
 
-sleep 5
-psql -t <create.sql
-time ./load.sh
+for _ in {1..300}
+do
+  psql $CONNECTION -t < create.sql && break
+  sleep 1
+done
 
-psql -c "ALTER DATABASE postgres SET duckdb.force_execution = true;"
+echo -n "Load time: "
+command time -f '%e' ./load.sh
+
+psql $CONNECTION -c "ALTER DATABASE postgres SET duckdb.force_execution = true;"
 ./run.sh 2>&1 | tee log.txt
 
-docker exec -i pgduck du -bcs /var/lib/postgresql/data
+echo -n "Data size: "
+docker exec -i pgduck du -bcs /var/lib/postgresql/data | grep total
 
 cat log.txt | grep -oP 'Time: \d+\.\d+ ms' | sed -r -e 's/Time: ([0-9]+\.[0-9]+) ms/\1/' |
     awk '{ if (i % 3 == 0) { printf "[" }; printf $1 / 1000; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+set -e
 
 # This benchmark should run on Ubuntu 20.04
 
@@ -15,7 +15,7 @@ fi
 file_name="$(basename ${url})"
 if [[ "$url" == "http"* ]]; then
     if [[ ! -f $file_name ]]; then
-        wget --continue ${url}
+        wget --continue --progress=dot:giga ${url}
     else
         echo "$file_name already exists, no need to download."
     fi
@@ -36,15 +36,17 @@ DORIS_HOME="$ROOT/$dir_name/selectdb-doris-2.1.7-rc01-bin-x64"
 export DORIS_HOME
 
 # Install dependencies
-sudo apt update
-sudo apt install -y openjdk-17-jdk
-sudo apt install -y mysql-client
-export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64/"
+sudo apt-get update -y
+sudo apt-get install -y openjdk-17-jdk
+sudo apt-get install -y mysql-client
+export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)/"
 export PATH=$JAVA_HOME/bin:$PATH
 
+set +e
 sudo systemctl disable unattended-upgrades
 sudo systemctl stop unattended-upgrades
-sudo systemctl stop mssql-server
+sudo systemctl stop mysql-server
+set -e
 
 "$DORIS_HOME"/fe/bin/start_fe.sh --daemon
 
@@ -54,7 +56,8 @@ ulimit -n 65535
 "$DORIS_HOME"/be/bin/start_be.sh --daemon
 
 # Wait for Frontend ready
-while true; do
+for _ in {1..300}
+do
     fe_version=$(mysql -h127.0.0.1 -P9030 -uroot -e 'show frontends' | cut -f16 | sed -n '2,$p')
     if [[ -n "${fe_version}" ]] && [[ "${fe_version}" != "NULL" ]]; then
         echo "Frontend version: ${fe_version}"
@@ -69,7 +72,8 @@ done
 mysql -h 127.0.0.1 -P9030 -uroot -e "ALTER SYSTEM ADD BACKEND '127.0.0.1:9050' "
 
 # Wait for Backend ready
-while true; do
+for _ in {1..300}
+do
     be_version=$(mysql -h127.0.0.1 -P9030 -uroot -e 'show backends' | cut -f22 | sed -n '2,$p')
     if [[ -n "${be_version}" ]]; then
         echo "Backend version: ${be_version}"
@@ -89,8 +93,9 @@ mysql -h 127.0.0.1 -P9030 -uroot hits <"$ROOT"/create.sql
 
 # Download data
 if [[ ! -f hits.tsv.gz ]] && [[ ! -f hits.tsv ]]; then
-    wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-    gzip -d -f hits.tsv.gz
+    sudo apt-get install -y pigz
+    wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+    pigz -d -f hits.tsv.gz
 fi
 
 # Load data
@@ -105,13 +110,20 @@ curl --location-trusted \
     http://localhost:8030/api/hits/hits/_stream_load
 END=$(date +%s)
 LOADTIME=$(echo "$END - $START" | bc)
-echo "Load data costs $LOADTIME seconds"
-echo "$LOADTIME" >loadtime
+echo "Load time: $LOADTIME"
+echo "$LOADTIME" > loadtime
 
 # Dataset contains 99997497 rows, storage size is about 17319588503 bytes
 mysql -h 127.0.0.1 -P9030 -uroot hits -e "SELECT count(*) FROM hits"
 du -bs "$DORIS_HOME"/be/storage/ | cut -f1 | tee storage_size
 
+echo "Data size: $(cat storage_size)"
+
 # Run queries
-./run.sh 2>&1 | tee -a run.log
-date
+./run.sh 2>&1 | tee -a log.txt
+
+cat log.txt |
+  grep -P 'rows? in set|Empty set|^ERROR' |
+  sed -r -e 's/^ERROR.*$/null/; s/^.*?\((([0-9.]+) min )?([0-9.]+) sec\).*?$/\2 \3/' |
+  awk '{ if ($2 != "") { print $1 * 60 + $2 } else { print $1 } }' |
+  awk '{ if (i % 3 == 0) { printf "[" }; printf $1; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

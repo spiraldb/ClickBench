@@ -2,7 +2,7 @@
 
 curl -LJO 'https://github.com/datafuselabs/databend/releases/download/v0.9.53-nightly/databend-v0.9.53-nightly-x86_64-unknown-linux-musl.tar.gz'
 tar xzvf 'databend-v0.9.53-nightly-x86_64-unknown-linux-musl.tar.gz'
- 
+
 cat > config.toml << CONF
 [storage]
 type = "fs"
@@ -24,13 +24,22 @@ CONF
 
 # Load the data
 # Docs: https://databend.rs/doc/use-cases/analyze-hits-dataset-with-databend
-curl 'http://default@localhost:8124/' --data-binary @create.sql
+for _ in {1..600}
+do
+  curl -sS 'http://default@localhost:8124/' --data-binary @create.sql && break
+  sleep 1
+done
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
 ## Aws gp2 write performance is not stable, we must load the data when disk's write around ~500MB/s (Don't know much about the rules of gp2)
-time curl -XPUT 'http://root:@127.0.0.1:8000/v1/streaming_load' -H 'insert_sql: insert into hits FILE_FORMAT = (type = TSV)' -F 'upload=@"./hits.tsv"'
+# Load Data
+START=$(date +%s)
+curl -sS -XPUT 'http://root:@127.0.0.1:8000/v1/streaming_load' -H 'insert_sql: insert into hits FILE_FORMAT = (type = TSV)' -F 'upload=@"./hits.tsv"'
+END=$(date +%s)
+echo "Load time: $(echo "$END - $START" | bc)"
 
 ## in c5.4x large, it's 368s
 # {"id":"17477ed9-9f1a-46d9-b6cf-12a5971f4450","state":"SUCCESS","stats":{"rows":99997497,"bytes":74807831229},"error":null,"files":["hits.tsv"]}
@@ -53,9 +62,10 @@ time curl -XPUT 'http://root:@127.0.0.1:8000/v1/streaming_load' -H 'insert_sql: 
 
 
 ## check data is correct
-curl 'http://default@localhost:8124/' --data-binary "select count() from hits"
+curl -sS 'http://default@localhost:8124/' --data-binary "select count() from hits"
 
-du -bcs _data
+echo -n "Data size: "
+du -bcs _data | grep total
 # 20922561953     _data
 # 20922561953     total
 

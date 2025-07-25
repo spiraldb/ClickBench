@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Update package lists
-sudo apt-get update
-sudo apt-get install -y software-properties-common 
+sudo apt-get update -y
+sudo apt-get install -y software-properties-common
 sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt-get update
+sudo apt-get update -y
 
 # Install required packages
 sudo apt-get install -y python3.11 python3.11-venv git wget build-essential python3.11-dev
@@ -19,7 +19,7 @@ source ~/opteryx_venv/bin/activate
 
 # Download benchmark target data, partitioned
 mkdir -p hits
-seq 0 99 | xargs -P100 -I{} bash -c 'wget --directory-prefix hits --continue https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
+seq 0 99 | xargs -P100 -I{} bash -c 'wget --directory-prefix hits --continue --progress=dot:giga https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
 
 # Run a simple query to check the installation
 ~/opteryx_venv/bin/python -m opteryx "SELECT version()" 2>&1
@@ -29,7 +29,7 @@ if [[ -f ./queries.sql ]]; then
     while read -r query; do
         sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches
 
-        ~/opteryx_venv/bin/python -m opteryx "$query" --cycles 3 2>&1
+        (~/opteryx_venv/bin/python -m opteryx "$query" --cycles 3 2>&1 | grep -v -P '^3$') || echo '[null,null,null]'
     done < ./queries.sql
 else
     echo "queries.sql not found."
@@ -37,3 +37,6 @@ fi
 
 # Deactivate the virtual environment
 deactivate
+
+echo "Data size: $(du -bcs hits | grep total)"
+echo "Load time: 0"

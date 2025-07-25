@@ -17,11 +17,16 @@ command -v clickhouse-client || exit 1
 NAME_PREFIX="ClickBench-${PROVIDER}-${REGION}-${REPLICAS}-${MEMORY}"
 NAME_FULL="${NAME_PREFIX}-$$"
 
+TMPDIR="csp-${PROVIDER}-region-${REGION}-replicas-${REPLICAS}-memory-${MEMORY}-parallel-${PARALLEL_REPLICA}-pid-$$"
+mkdir -p "${TMPDIR}"
+
+echo $TMPDIR
+
 curl -X GET -H 'Content-Type: application/json' --silent --show-error --user "${KEY_ID}:${KEY_SECRET}" "https://api.clickhouse.cloud/v1/organizations/${ORGANIZATION}/services" | jq .result \
 | ch --input-format JSONEachRow --query "SELECT id FROM table WHERE startsWith(name, '${NAME_PREFIX}')" \
 | while read -r OLD_SERVICE_ID
 do
-    echp "Found an old service, ${OLD_SERVICE_ID}. Stopping it."
+    echo "Found an old service, ${OLD_SERVICE_ID}. Stopping it."
     curl -X PATCH -H 'Content-Type: application/json' -d '{"command": "stop"}' --silent --show-error --user $KEY_ID:$KEY_SECRET "https://api.clickhouse.cloud/v1/organizations/${ORGANIZATION}/services/${OLD_SERVICE_ID}/state" | jq
     echo "Waiting for the service to stop"
 
@@ -43,11 +48,6 @@ do
 done
 
 echo "Provisioning a service in ${PROVIDER}, region ${REGION}, memory ${MEMORY}, replicas ${REPLICAS}, with parallel replicas set to ${PARALLEL_REPLICA}"
-
-TMPDIR="csp-${PROVIDER}-region-${REGION}-replicas-${REPLICAS}-memory-${MEMORY}-parallel-${PARALLEL_REPLICA}-pid-$$"
-mkdir -p "${TMPDIR}"
-
-echo $TMPDIR
 
 curl -X POST -H 'Content-Type: application/json' -d '
 {

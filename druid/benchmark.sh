@@ -1,12 +1,18 @@
-#!/bin/bash
+#!/bin/bash -e
 
-sudo apt-get update
-sudo apt install -y openjdk-8-jdk python2
+sudo apt-get update -y
+sudo apt-get install -y openjdk-11-jdk
 sudo update-alternatives --config java
+
+# On small machines it can only work with swap
+sudo fallocate -l 200G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
 
 # Install
 
-VERSION=0.23.0
+VERSION=33.0.0
 
 wget -O"apache-druid-${VERSION}-bin.tar.gz" "https://dlcdn.apache.org/druid/${VERSION}/apache-druid-${VERSION}-bin.tar.gz"
 tar xf apache-druid-${VERSION}-bin.tar.gz
@@ -26,10 +32,12 @@ echo "druid.query.groupBy.maxMergingDictionarySize=5000000000" >> apache-druid-$
 
 # Load the data
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 
-./apache-druid-${VERSION}/bin/post-index-task --file ingest.json --url http://localhost:8081
+echo -n "Load time: "
+command time -f '%e' ./apache-druid-${VERSION}/bin/post-index-task --file ingest.json --url http://localhost:8081
 
 # The command above will fail due to timeout but still continue to run in background.
 # The loading time should be checked from the logs.
@@ -40,4 +48,5 @@ gzip -d -f hits.tsv.gz
 # stop Druid services
 kill %1
 
-du -bcs ./apache-druid-${VERSION}/var
+echo -n "Data size: "
+du -bcs ./apache-druid-${VERSION}/var | grep total

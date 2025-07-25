@@ -3,10 +3,10 @@
 # Requires at least 300GB of free disk space on the main partition for the dataset, intermediate files, and SigLens data.
 
 echo "Install prerequisites"
-sudo apt-get install --yes git golang
+sudo apt-get install -y git golang
 
 echo "Get and build SigLens"
-git clone https://github.com/siglens/siglens.git --branch 1.0.41
+git clone https://github.com/siglens/siglens.git --branch 1.0.54
 cd siglens
 go mod tidy
 go build -o siglens cmd/siglens/main.go
@@ -14,11 +14,13 @@ go build -o siglens cmd/siglens/main.go
 cd ..
 
 echo "Download and unzip dataset"
-wget --continue https://datasets.clickhouse.com/hits_compatible/hits.json.gz
-gzip -d hits.json.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.json.gz'
+pigz -d -f hits.json.gz
 
 echo "Load data into SigLens, this can take a few hours"
-time python3 send_datawithactionline.py
+echo -n "Load time: "
+command time -f '%e' python3 send_datawithactionline.py
 
 echo "Run queries"
 ./run.sh

@@ -1,14 +1,15 @@
 #!/bin/bash -e
 
 # docker
-sudo apt-get update
-sudo apt-get install -y  docker.io postgresql-client gzip
+sudo apt-get update -y
+sudo apt-get install -y docker.io postgresql-client gzip
 
 # download dataset
 echo "Downloading dataset..."
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
 echo "Unpacking dataset..."
-gzip -d hits.tsv.gz
+pigz -d -f hits.tsv.gz
 mkdir data
 mv hits.tsv data
 chmod -R 777 data
@@ -16,7 +17,7 @@ rm -rf db
 mkdir db
 
 # get and configure CedarDB image
-echo "Starting CedarDB..." 
+echo "Starting CedarDB..."
 docker run --rm -p 5432:5432 -v ./data:/data -v ./db:/var/lib/cedardb/data -e CEDAR_PASSWORD=test --name cedardb cedardb/cedardb:latest > /dev/null 2>&1 &
 
 # wait for container to start
@@ -25,11 +26,12 @@ until pg_isready -h localhost --dbname postgres -U postgres > /dev/null 2>&1; do
 # create table and ingest data
 PGPASSWORD=test  psql -h localhost -U postgres -t < create.sql
 echo "Inserting data..."
-PGPASSWORD=test time psql -h localhost -U postgres -t -c '\timing' -c "COPY hits FROM '/data/hits.tsv';"
+echo -n "Load time: "
+PGPASSWORD=test command time -f '%e' psql -h localhost -U postgres -q -t -c "COPY hits FROM '/data/hits.tsv';"
 
 # get ingested data size
-echo "data size after ingest:"
-PGPASSWORD=test psql -h localhost -U postgres -t -c '\timing' -c "SELECT pg_total_relation_size('hits');"
+echo -n "Data size: "
+PGPASSWORD=test psql -h localhost -U postgres -q -t -c "SELECT pg_total_relation_size('hits');"
 
 # run benchmark
 echo "running benchmark..."

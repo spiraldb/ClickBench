@@ -7,7 +7,9 @@ CPU_LOW=10
 RAM_HIGH=51539607552
 RAM_LOW=42949672960
 
-apt-get install -y python3-pip
+apt-get install -y python3-pip python3-venv
+python3 -m venv myenv
+source myenv/bin/activate
 pip install ytsaurus-client --break-system-packages
 pip install ytsaurus-yson --break-system-packages
 
@@ -43,7 +45,8 @@ insert_data() {
 }
 
 data_filling_waiting() {
-        while true; do
+        for _ in {1..300}
+        do
                 COUNT=$(yt clickhouse execute --alias *clickbench 'select count(*) as c from `//home/hits`')
                 if [[ "$COUNT" == 99997497 ]]; then
                         yt abort-query $(cat fill_query_id)
@@ -56,15 +59,11 @@ data_filling_waiting() {
 
 
 fill_data() {
-echo "Creating table"
-time yt clickhouse execute "$(cat create.sql)" --alias *clickbench --proxy $YT_PROXY
-echo "Filling data"
+command time -f '%e' yt clickhouse execute "$(cat create.sql)" --alias *clickbench --proxy $YT_PROXY
 insert_data
 data_filling_waiting &
 throbber $!
-echo "Sorting data"
-time yt sort --src //home/hits --dst //home/hits --sort-by "CounterID" --sort-by "EventDate" --sort-by "UserID" --sort-by "EventTime" --sort-by "WatchID" --proxy $YT_PROXY
-
+yt sort --src //home/hits --dst //home/hits --sort-by "CounterID" --sort-by "EventDate" --sort-by "UserID" --sort-by "EventTime" --sort-by "WatchID" --proxy $YT_PROXY
 }
 
 
@@ -110,7 +109,8 @@ run() {
 }
 
 clique_waiting() {
-        while true; do
+        for _ in {1..300}
+        do
                 if check_ready; then
                         echo "Clique is almost ready. Waiting 1 minute to stabilize"
                         sleep 60
@@ -132,8 +132,8 @@ change_clique_size 1 $CPU_HIGH $RAM_HIGH
 
 clique_waiting
 echo "-------------------------------------"
-echo "Filling data"
-fill_data
+echo -n "Load time: "
+command time -f '%e' fill_data
 echo "-------------------------------------"
 
 for i in "1 $CPU_HIGH $RAM_HIGH 48GB" "2 $CPU_HIGH $RAM_HIGH 96GB" "4 $CPU_HIGH $RAM_HIGH 192GB" "9 $CPU_LOW $RAM_LOW 360GB"
@@ -144,4 +144,3 @@ do
 	clique_waiting
 	run
 done
-

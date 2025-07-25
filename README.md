@@ -54,12 +54,12 @@ TLDR: *All Benchmarks Are ~~Bastards~~ Liars*.
 
 To introduce a new system, simply copy-paste one of the directories and edit the files accordingly:
 
-- `benchmark.sh`: this is the main script to run the benchmark on a fresh VM; Ubuntu 22.04 or newer should be used by default, or any other system if specified in the comments. The script may not necessarily run in a fully automated manner - it is recommended always to copy-paste the commands one by one and observe the results. For managed databases, if the setup requires clicking in the UI, write a `README.md` instead.
+- `benchmark.sh`: this is the main script to run the benchmark on a fresh VM; Ubuntu 24.04 or newer should be used by default. For databases that could be installed locally, the script should be able to run in a fully automated manner, so it can be used as a cloud-init script. It should output the results in the following format: - one or more lines `Load time: 1234` with the time in seconds; - a line `Data size: 1234567890` with the data size in bytes; the data size should include indexes and transaction logs if applicable; - 43 consecutive lines in the form of `[1.234, 5.678, 9.012],` for the runtimes of every query; - the output may include other lines with the logs, that are not used for the report. For managed databases, if the setup requires clicking in the UI, write a `README.md` instead.
 - `README.md`: contains comments and observations if needed. For managed databases, it can describe the setup procedure to be used instead of a shell script.
 - `create.sql`: a CREATE TABLE statement. If it's a NoSQL system, another file like `wtf.json` can be presented.
 - `queries.sql`: contains 43 queries to run;
 - `run.sh`: a loop for running the queries; every query is run three times; if it's a database with local on-disk storage, the first query should be run after dropping the page cache;
-- `results`: put the .json files with the results for every hardware configuration there.
+- `results`: put the .json files with the results for every hardware configuration there. Please double-check that each file is valid JSON (e.g., no comma errors).
 
 To introduce a new result for an existing system on different hardware configurations, add a new file to `results`.
 
@@ -144,7 +144,7 @@ We allow but do not recommend creating scoreboards from this benchmark or saying
 
 There is a web page to navigate across benchmark results and present a summary report. It allows filtering out some systems, setups, or queries. For example, if you found some subset of the 43 queries are irrelevant, you can simply exclude them from the calculation and share the report without these queries.
 
-You can select the summary metric from one of the following: "Cold Run", "Hot Run", "Load Time", and "Data Size". If you select the "Load Time" or "Data Size", the entries will be simply ordered from best to worst, and additionally, the ratio to the best non-zero result will be shown (the number of times one system is worse than the best system in this metric). Load time can be zero for stateless query engines like `clickhouse-local` or `Amazon Athena`.
+You can select the summary metric from one of the following: "Cold Run", "Hot Run", "Load Time", "Data Size", and "Combined". If you select the "Load Time" or "Data Size", the entries will be simply ordered from best to worst, and additionally, the ratio to the best non-zero result will be shown (the number of times one system is worse than the best system in this metric). Load time can be zero for stateless query engines like `clickhouse-local` or `Amazon Athena`.
 
 If you select "Cold Run" or "Hot Run", the aggregation across the queries is performed in the following way:
 
@@ -170,6 +170,7 @@ For example, one system crashed while trying to run a query which can highlight 
 
 Why geometric mean? The ratios can only be naturally averaged in this way. Imagine there are two queries and two systems. The first system ran the first query in 1s and the second query in 20s. The second system ran the first query in 2s and the second query in 10s. So, the first system is two times faster on the first query and two times slower on the second query and vice-versa. The final score should be identical for these systems.
 
+The "Combined" metric summarizes all the results as a weighted geometric mean with the following weights: load time: 10%, data size: 10%, cold runtime: 20%, hot runtime: 60%.
 
 ## History and Motivation
 
@@ -201,109 +202,60 @@ We also introduced the [Hardware Benchmark](https://benchmark.clickhouse.com/har
 
 ## Systems Included
 
-- [x] ClickHouse
-- [x] ClickHouse on local Parquet files
-- [x] ClickHouse operating like "Athena" on remote Parquet files
-- [x] ClickHouse on a VFS over HTTPs on CDN
-- [x] MySQL InnoDB
-- [x] MySQL MyISAM
-- [x] MariaDB
-- [x] MariaDB ColumnStore
-- [x] MemSQL/SingleStore
-- [x] PostgreSQL
-- [x] Greenplum
-- [x] TimescaleDB
-- [x] Citus
-- [x] Vertica (without publishing)
-- [x] QuestDB
-- [x] chdb
-- [x] DuckDB
-- [x] DuckDB over local Parquet files
-- [ ] DuckDB operating like "Athena" on remote Parquet files
-- [x] MonetDB
-- [x] mapD/Omnisci/HeavyAI
-- [x] Databend
-- [x] DataFusion
-- [x] ByteHouse
-- [x] Doris/PALO
-- [x] SelectDB
-- [x] Druid
-- [x] Pinot
-- [x] CrateDB
-- [x] Spark SQL
-- [x] Starrocks
-- [ ] ShitholeDB
-- [ ] Hive
-- [x] Hydra
-- [ ] Impala
-- [x] Hyper
-- [x] Umbra
-- [x] SQLite
-- [x] Redshift
-- [x] Redshift Serverless
-- [ ] Redshift Spectrum
-- [ ] Presto
-- [ ] Trino
-- [x] Amazon Athena
-- [x] Bigquery (without publishing)
-- [x] Snowflake
-- [ ] Rockset
-- [x] CockroachDB
-- [ ] CockroachDB Serverless
-- [ ] Databricks
-- [ ] Planetscale (without publishing)
-- [ ] TiDB (TiFlash)
-- [x] Amazon RDS Aurora for MySQL
-- [x] Amazon RDS Aurora for Postgres
-- [ ] InfluxDB
-- [ ] TDEngine
-- [x] MongoDB
-- [ ] Cassandra
-- [ ] ScyllaDB
-- [x] Elasticsearch
-- [ ] Apache Ignite
-- [x] Motherduck
-- [x] Infobright
-- [ ] Actian Vector
-- [ ] Manticore Search
-- [x] Vertica (without publishing)
-- [ ] Azure Synapse
-- [ ] Starburst Galaxy
-- [ ] MS SQL Server with Column Store Index (without publishing)
-- [ ] Dremio (without publishing)
-- [ ] Exasol
-- [ ] LocustDB
-- [ ] EventQL
-- [x] Apache Drill
-- [ ] Apache Kudu
-- [ ] Apache Kylin
-- [x] S3 select command in AWS
-- [x] Kinetica
-- [ ] YDB
-- [ ] OceanBase
-- [ ] Boilingdata
-- [x] Byteconity
-- [ ] DolphinDB
-- [x] Oxla
-- [ ] Quickwit
-- [x] AlloyDB
-- [x] ParadeDB
-- [x] GlareDB
-- [ ] Seafowl
-- [ ] Sneller
-- [x] Tablespace
-- [x] Tembo
-- [x] Cloudberry
-- [x] Daft
-- [x] Pandas
-- [x] Polars
-- [x] OctoSQL
-- [x] VictoriaLogs
-- [x] Hologres
+ClickBench provides [publicly available benchmark results for over 60 database management systems](https://benchmark.clickhouse.com/).
 
 By default, all tests are run on c6a.4xlarge VM in AWS with 500 GB gp2.
 
-Please help us add more systems and run the benchmarks on more types of VMs.
+In addition, there are also systems where the code to run the benchmark is provided, but the results cannot be published.
+Currently, this includes
+
+- Vertica
+
+Please help us add more systems and run the benchmarks on more types of VMs:
+
+- [ ] Actian Vector
+- [ ] Apache Ignite
+- [ ] Apache Kudu
+- [ ] Apache Kylin
+- [ ] Azure Synapse
+- [ ] Boilingdata
+- [ ] CockroachDB Serverless
+- [ ] Databricks
+- [ ] DolphinDB
+- [ ] Dremio (without publishing)
+- [ ] DuckDB operating like "Athena" on remote Parquet files
+- [ ] EventQL
+- [ ] Exasol
+- [ ] Hive
+- [ ] Hydrolix
+- [ ] Impala
+- [ ] InfluxDB
+- [ ] LocustDB
+- [ ] Manticore Search
+- [ ] MS SQL Server with Column Store Index (without publishing)
+- [ ] OceanBase
+- [ ] Planetscale (without publishing)
+- [ ] Presto
+- [ ] Quickwit
+- [ ] Redshift Spectrum
+- [ ] Rockset 
+- [ ] Seafowl
+- [ ] ShitholeDB
+- [ ] Sneller
+- [ ] Starburst Galaxy
+- [ ] Trino
+- [ ] TDEngine
+
+The list above _may_ include systems that cannot run ClickBench for various limitations.
+Systems that have been identified to have known limitations or issues and could not be benchmarked are:
+
+- Cassandra (see [discussion](https://github.com/ClickHouse/ClickBench/issues/384))
+- csvq (see [README](https://github.com/ClickHouse/ClickBench/tree/main/csvq))
+- dsq (see [README](https://github.com/ClickHouse/ClickBench/tree/main/dsq))
+- Hydrolix (see [README](https://github.com/ClickHouse/ClickBench/tree/main/hydrolix))
+- LoctusDB (see [README](https://github.com/ClickHouse/ClickBench/tree/main/locustdb))
+- ScyllaDB (see [discussion](https://github.com/ClickHouse/ClickBench/issues/384))
+- S3 select command in AWS (see [README](https://github.com/ClickHouse/ClickBench/tree/main/s3select))
 
 ## Similar Projects
 

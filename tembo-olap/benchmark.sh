@@ -3,18 +3,22 @@
 HOSTNAME="<hostname>"
 PASSWORD="<password>"
 
-sudo apt-get update
+sudo apt-get update -y
 sudo apt-get install -y postgresql-client
 
-wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
-gzip -d -f hits.tsv.gz
+sudo apt-get install -y pigz
+wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'
+pigz -d -f hits.tsv.gz
 chmod 777 ~ hits.tsv
 
 psql postgresql://postgres:$PASSWORD@$HOSTNAME:5432 -t -c 'CREATE DATABASE test'
 psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" < create.sql
-psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" -t -c '\timing' -c "\\copy hits FROM 'hits.tsv'"
-psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" < index.sql
-psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" -t -c '\timing' -c "select pg_total_relation_size('hits');"
+echo -n "Load time: "
+command time -f '%e' psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" -t -c "\\copy hits FROM 'hits.tsv'"
+echo -n "Load time: "
+command time -f '%e' psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" < index.sql
+echo -n "Data size: "
+psql "host=$HOSTNAME port=5432 dbname=test user=postgres password=$PASSWORD sslmode=require" -t -c "select pg_total_relation_size('hits');"
 
 ./run.sh "${HOSTNAME}" "${PASSWORD}" 2>&1 | tee log.txt
 

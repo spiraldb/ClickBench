@@ -20,23 +20,15 @@ fi
 mkdir -p "${script_dir}/data"
 pushd "${script_dir}/data"
 
-mode="${1:-single}" # Default to 'single' if no arg given.
-case "${mode}" in
-    single)
-        wget --continue https://clickhouse-public-datasets.s3.eu-central-1.amazonaws.com/hits_compatible/athena/hits.parquet
-        ;;
-    partitioned)
-        seq 0 99 | xargs -P100 -I{} bash -c 'wget --continue https://datasets.clickhouse.com/hits_compatible/athena_partitioned/hits_{}.parquet'
-        ;;
-    *)
-        echo "Invalid argument to 'benchmark.sh', expected 'single' or 'partitioned'"
-        exit 1
-        ;;
-esac
+wget --continue --progress=dot:giga https://clickhouse-public-datasets.s3.eu-central-1.amazonaws.com/hits_compatible/athena/hits.parquet
+echo "Data size: $(du -bcs hits*.parquet | grep total)"
 popd
 
 # Ensure working directory is the script dir. The view that gets created uses a
 # relative path.
 pushd "${script_dir}"
 
-./run.sh "${mode}"
+./run.sh single
+cat results.json
+
+echo "Load time: 0"

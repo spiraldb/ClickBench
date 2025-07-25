@@ -9,7 +9,7 @@ curl https://clickhouse.com/ | sh
 sudo ./clickhouse install --noninteractive
 sudo clickhouse start
 
-while true
+for _ in {1..300}
 do
     clickhouse-client --query "SELECT 1" && break
     sleep 1
@@ -21,10 +21,12 @@ sudo chown clickhouse:clickhouse /dev/shm/clickhouse
 
 # Load the data
 
+echo -n "Load time: "
 clickhouse-client --time < create.sql
 
 # Run the queries
 
 ./run.sh
 
+echo -n "Data size: "
 clickhouse-client --query "SELECT total_bytes FROM system.tables WHERE name = 'hits' AND database = 'default'"

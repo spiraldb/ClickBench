@@ -1,8 +1,8 @@
 #!/bin/bash
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 if [[ $1 == '' ]]; then
-	echo "SELINUX=disabled" > /etc/selinux/config 
-	SHMALL=$(expr $(getconf _PHYS_PAGES) / 2) 
+	echo "SELINUX=disabled" > /etc/selinux/config
+	SHMALL=$(expr $(getconf _PHYS_PAGES) / 2)
 	SHMAX=$(expr $(getconf _PHYS_PAGES) / 2 \* $(getconf PAGE_SIZE))
 	echo "Using shmall=$SHMALL, shmax=$SHMAX"
 	echo "
@@ -64,13 +64,15 @@ elif [[ $1 == 'db-install' ]]; then
 	echo "Database installation"
 	yum install -y go
 	export GOPROXY=https://goproxy.io,direct
-	yum -y install R apr apr-devel apr-util automake autoconf bash bison bison-devel bzip2 bzip2-devel flex flex-devel gcc gcc-c++ git gdb iproute krb5-devel less libevent libevent-devel libxml2 libxml2-devel libyaml libzstd-devel libzstd make openldap openssh openssh-clients openssh-server openssl openssl-devel openssl-libs perl python3-devel readline readline-devel rsync sed sudo tar vim wget which zip zlib python3-pip python3-psycopg2 postgresql15 libpq-devel psutils
+	yum -y install R apr apr-devel apr-util automake autoconf bash bison bison-devel bzip2 bzip2-devel flex flex-devel gcc gcc-c++ git gdb iproute krb5-devel less libevent libevent-devel libxml2 libxml2-devel libyaml libzstd-devel libzstd make openldap openssh openssh-clients openssh-server openssl openssl-devel openssl-libs perl python3-devel readline readline-devel rsync sed sudo tar vim wget which zip zlib python3-pip python3-venv python3-psycopg2 postgresql15 libpq-devel psutils
 	yum install curl libcurl-devel --allowerasing
 	yum install https://cdn.amazonlinux.com/2/core/2.0/x86_64/6b0225ccc542f3834c95733dcf321ab9f1e77e6ca6817469771a8af7c49efe6c/../../../../../blobstore/4846e71174e99f1b7f0985aa01631de003633d3a5f1a950812323c175214ae16/xerces-c-3.1.1-10.amzn2.x86_64.rpm
 	yum install 	https://cdn.amazonlinux.com/2/core/2.0/x86_64/6b0225ccc542f3834c95733dcf321ab9f1e77e6ca6817469771a8af7c49efe6c/../../../../../blobstore/53208ffe95cd1e38bba94984661e79134b3cc1b039922e828c40df7214ecaee8/xerces-c-devel-3.1.1-10.amzn2.x86_64.rpm
 
-	pip install --break-system-packages PygreSQL psutil
-	if [[ $2 != 'no_dl' ]]; then wget https://github.com/cloudberrydb/cloudberrydb/archive/refs/tags/1.5.3.tar.gz; fi
+	python3 -m venv myenv
+  source myenv/bin/activate
+  pip install PygreSQL psutil
+	if [[ $2 != 'no_dl' ]]; then wget --continue --progress=dot:giga https://github.com/cloudberrydb/cloudberrydb/archive/refs/tags/1.5.3.tar.gz; fi
 	tar -xzf 1.5.3.tar.gz
 	cd cloudberrydb-1.5.3/
 	echo -e "/usr/local/lib \n/usr/local/lib64" >> /etc/ld.so.conf
@@ -104,13 +106,15 @@ elif [[ $1 == 'test' ]]; then
         cp $SCRIPT_DIR/run.sh /home/gpadmin/
 	chmod +x /home/gpadmin/run.sh
 	chown gpadmin:gpadmin /home/gpadmin/*
-	if [[ $2 != 'no_dl' ]]; then sudo -iu gpadmin wget --continue 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'; fi
+	if [[ $2 != 'no_dl' ]]; then sudo -iu gpadmin wget --continue --progress=dot:giga 'https://datasets.clickhouse.com/hits_compatible/hits.tsv.gz'; fi
 	if [[ $2 != 'no_dl' ]]; then sudo -iu gpadmin gzip -d -f hits.tsv.gz; fi
 	sudo -iu gpadmin chmod 777 ~ hits.tsv
 	sudo -iu gpadmin psql -d postgres -f /home/gpadmin/create.sql
 	sudo -iu gpadmin nohup gpfdist &
-	if [[ $2 != 'no_dl' ]]; then sudo -iu gpadmin time psql -d postgres -t -c '\timing' -c "insert into hits select * from hits_ext;"; fi
-	if [[ $2 != 'no_dl' ]]; then sudo -iu gpadmin psql -d postgres -t -c "ANALYZE hits;"; fi
+	if [[ $2 != 'no_dl' ]]; then echo -n "Load time: "
+                               command time -f '%e' sudo -iu gpadmin psql -d postgres -t -c "insert into hits select * from hits_ext;"; fi
+	if [[ $2 != 'no_dl' ]]; then echo -n "Load time: "
+                               command time -f '%e' sudo -iu gpadmin psql -d postgres -t -c "ANALYZE hits;"; fi
 	du -sh /data0*
 	sudo -iu gpadmin /home/gpadmin/run.sh 2>&1 | tee log.txt
 	cat log.txt | grep -oP 'Time: \d+\.\d+ ms' | sed -r -e 's/Time: ([0-9]+\.[0-9]+) ms/\1/' |awk '{ if (i % 3 == 0) { printf "[" }; printf $1 / 1000; if (i % 3 != 2) { printf "," } else { print "]," }; ++i; }'

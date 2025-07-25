@@ -3,13 +3,13 @@
 import pandas as pd
 import timeit
 import datetime
-import json
 import duckdb
 
 start = timeit.default_timer()
 hits = pd.read_parquet("hits.parquet")
 end = timeit.default_timer()
-load_time = end - start
+load_time = round(end - start, 3)
+print(f"Load time: {load_time}")
 
 dataframe_size = hits.memory_usage().sum()
 
@@ -36,13 +36,13 @@ for q in queries:
         start = timeit.default_timer()
         result = conn.execute(q).fetchall()
         end = timeit.default_timer()
-        times.append(end - start)
+        times.append(round(end - start, 3))
     queries_times.append(times)
 
 result_json = {
     "system": "DuckDB (DataFrame)",
     "date": datetime.date.today().strftime("%Y-%m-%d"),
-    "machine": "c6a.metal, 500gb gp2",
+    "machine": "c6a.metal",
     "cluster_size": 1,
     "comment": "",
     "tags": [
@@ -57,13 +57,3 @@ result_json = {
     "data_size": int(dataframe_size),
     "result": queries_times,
 }
-
-# if cpuinfo contains "AMD EPYC 9654" update machine and write result into results/epyc-9654.json
-if "AMD EPYC 9654" in open("/proc/cpuinfo").read():
-    result_json["machine"] = "EPYC 9654, 384G"
-    with open("results/epyc-9654.json", "w") as f:
-        f.write(json.dumps(result_json, indent=4))
-else:
-    # write result into results/c6a.metal.json
-    with open("results/c6a.metal.json", "w") as f:
-        f.write(json.dumps(result_json, indent=4))

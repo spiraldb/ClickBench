@@ -4,6 +4,7 @@ import polars as pl
 import timeit
 from datetime import date
 import json
+import os
 
 # 0: No., 1: SQL, 2: Polars
 queries = [
@@ -450,8 +451,7 @@ queries = [
 ]
 
 
-def run_timings(lf: pl.LazyFrame, name: str, src: str, load_time: int | None) -> None:
-    queries_times = []
+def run_timings(lf: pl.LazyFrame) -> None:
     for q in queries:
         print(q[0])
         times = []
@@ -462,55 +462,20 @@ def run_timings(lf: pl.LazyFrame, name: str, src: str, load_time: int | None) ->
             if result is None:
                 times.append(None)
             else:
-                times.append(end - start)
-        queries_times.append(times)
+                times.append(round(end - start, 3))
+        print(times)
 
-    result_json = {
-        "system": name,
-        "date": date.today().strftime("%Y-%m-%d"),
-        "machine": "c6a.metal, 500gb gp2",
-        "cluster_size": 1,
-        "comment": "",
-        "tags": [
-            "column-oriented",
-            src,
-        ],
-        "load_time": float(load_time) if load_time is not None else None,
-        "result": queries_times,
-    }
-    # if cpuinfo contains "AMD EPYC 9654" update machine and write result into results/epyc-9654.json
-    if "AMD EPYC 9654" in open("/proc/cpuinfo").read():
-        result_json["machine"] = "EPYC 9654, 384G"
-        with open(f"results/{src}_epyc-9654.json", "w") as f:
-            f.write(json.dumps(result_json, indent=4))
-    else:
-        # write result into results/c6a.metal.json
-        with open(f"results/{src}_c6a.metal.json", "w") as f:
-            f.write(json.dumps(result_json, indent=4))
-
+data_size = os.path.getsize("hits.parquet")
 
 # Run from Parquet
+start = timeit.default_timer()
 lf = pl.scan_parquet("hits.parquet").with_columns(
     (pl.col("EventTime") * int(1e6)).cast(pl.Datetime(time_unit="us")),
     pl.col("EventDate").cast(pl.Date),
 )
+end = timeit.default_timer()
+load_time = round(end - start, 3)
+print(f"Load time: {load_time}")
+
 print("run parquet queries")
-run_timings(lf, "Polars (Parquet)", "parquet", None)
-
-
-print("run DataFrame (in-memory) queries, this loads all data in memory!")
-start = timeit.default_timer()
-df = pl.scan_parquet("hits.parquet").collect()
-stop = timeit.default_timer()
-load_time = stop - start
-
-# fix some types
-df = df.with_columns(
-    (pl.col("EventTime") * int(1e6)).cast(pl.Datetime(time_unit="us")),
-    pl.col("EventDate").cast(pl.Date),
-)
-assert df["EventTime"][0].year == 2013
-df = df.rechunk()
-
-lf = df.lazy()
-run_timings(lf, "Polars (DataFrame)", "DataFrame", load_time)
+run_timings(lf)
